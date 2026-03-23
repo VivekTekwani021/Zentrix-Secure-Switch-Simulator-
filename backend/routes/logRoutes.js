@@ -1,6 +1,9 @@
 const express = require('express');
 const Log = require('../models/Log');
+const { protect } = require('../middleware/authMiddleware');
 const router = express.Router();
+
+router.use(protect);
 
 router.get('/', async (req, res) => {
     try {

@@ -1,7 +1,10 @@
 const express = require('express');
 const crypto = require('crypto');
 const Key = require('../models/Key');
+const { protect } = require('../middleware/authMiddleware');
 const router = express.Router();
+
+router.use(protect);
 
 // Generate a new secure encryption key
 router.post('/generate', async (req, res) => {

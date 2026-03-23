@@ -1,6 +1,9 @@
 const express = require('express');
 const Device = require('../models/Device');
+const { protect } = require('../middleware/authMiddleware');
 const router = express.Router();
+
+router.use(protect);
 
 router.post('/add', async (req, res) => {
   try {
