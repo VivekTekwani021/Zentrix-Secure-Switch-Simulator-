@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RadioTower, Send, Download, Cpu, Key, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
@@ -12,18 +12,39 @@ export function Simulation() {
   const [transmitting, setTransmitting] = useState(false);
   const [receiving, setReceiving] = useState(false);
   const [message, setMessage] = useState({ text: '', isError: false });
+  const [keys, setKeys] = useState([]);
+  const [selectedKeyId, setSelectedKeyId] = useState('');
 
   const headers = { Authorization: `Bearer ${localStorage.getItem('zen_token')}` };
 
+  useEffect(() => {
+    const fetchKeys = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/keys`, { headers });
+        const activeKeys = res.data.filter(k => k.isActive);
+        setKeys(activeKeys);
+        if (activeKeys.length > 0) {
+          setSelectedKeyId(activeKeys[0].keyId);
+        }
+      } catch (err) {
+        console.error("Failed to fetch keys", err);
+      }
+    };
+    fetchKeys();
+  }, []);
+
   const handleTransmit = async () => {
-    if (!inputData) return;
+    if (!inputData || !selectedKeyId) {
+      if (!selectedKeyId) setMessage({ text: 'Please generate an active encryption key in Key Management first.', isError: true });
+      return;
+    }
     setTransmitting(true);
     setEncryptedPayload(null);
     setDecryptedPayload(null);
     setMessage({ text: '' });
 
     try {
-      const res = await axios.post(`${API_URL}/simulate/transmit`, { data: inputData }, { headers });
+      const res = await axios.post(`${API_URL}/simulate/transmit`, { data: inputData, keyId: selectedKeyId }, { headers });
       
       // Artificial delay for visual effect
       await new Promise(r => setTimeout(r, 800));
@@ -96,6 +117,27 @@ export function Simulation() {
           
           <div className="p-4 flex-1 flex flex-col gap-4">
             <p className="text-sm text-gray-400">Enter raw JSON or text to be encapsulated by the switch.</p>
+            
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-accent-cyan font-semibold uppercase tracking-wider flex items-center gap-2"><Key className="w-3 h-3"/> Encryption Key</label>
+              <select 
+                value={selectedKeyId}
+                onChange={(e) => setSelectedKeyId(e.target.value)}
+                className="w-full bg-black/60 border border-dark-border hover:border-accent-cyan/50 rounded-lg p-3 text-sm text-amber-500 font-mono focus:outline-none focus:border-accent-cyan transition-colors cursor-pointer appearance-none"
+                style={{ WebkitAppearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300b0ff%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem top 50%', backgroundSize: '0.65rem auto' }}
+              >
+                {keys.length === 0 ? (
+                  <option value="">No Active Keys Found (Generate one in Key Management)</option>
+                ) : (
+                  keys.map(k => (
+                    <option key={k.keyId} value={k.keyId}>
+                      {k.keyId} ({k.algorithm})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
             <textarea 
               value={inputData}
               onChange={(e) => setInputData(e.target.value)}

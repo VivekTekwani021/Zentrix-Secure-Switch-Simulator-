@@ -28,21 +28,38 @@ app.get('/', (req, res) => {
 
 // ------------- VIVA DEMO SIMULATION ROUTE ------------- //
 // Simulating legacy data entering the Universal Switch
-const { encryptMiddleware, decrypt } = require('./middleware/encryption');
+const { encrypt, decrypt } = require('./middleware/encryption');
 const Log = require('./models/Log');
+const Key = require('./models/Key');
 
-app.post('/api/simulate/transmit', encryptMiddleware, async (req, res) => {
+app.post('/api/simulate/transmit', async (req, res) => {
     try {
-        // req.body.data is now ENCRYPTED via the middleware!
+        const { data, keyId } = req.body;
+        
+        if (!keyId) {
+            return res.status(400).json({ error: 'Encryption key ID is required' });
+        }
+
+        const keyDoc = await Key.findOne({ keyId });
+        if (!keyDoc || !keyDoc.isActive) {
+            return res.status(404).json({ error: 'Encryption key not found or inactive' });
+        }
+
+        // Encrypt data using the database key
+        const { iv, encryptedData } = encrypt(data, keyDoc.keyValue);
+        
+        // Package the payload so the receiver knows which key/IV was used
+        const packagedPayload = `${keyId}:${iv}:${encryptedData}`;
+
         await Log.create({
             action: 'encrypt',
             status: 'success',
-            details: `Legacy data wrapped & encrypted successfully.`
+            details: `Legacy data wrapped & encrypted successfully with key ${keyId}.`
         });
         
         res.json({ 
             message: 'Data Securely Transmitted by Universal Switch', 
-            encryptedPayload: req.body.data,
+            encryptedPayload: packagedPayload,
             originalDataInfo: "Hidden for security"
         });
     } catch (err) {
@@ -53,11 +70,32 @@ app.post('/api/simulate/transmit', encryptMiddleware, async (req, res) => {
 
 app.post('/api/simulate/receive', async (req, res) => {
     try {
-        // Opposite side: receiving and decrypting text
-        const output = decrypt(req.body.encryptedData);
-        await Log.create({ action: 'decrypt', status: 'success' });
+        const { encryptedData } = req.body;
+        
+        // Unpack the payload
+        const parts = encryptedData.split(':');
+        if (parts.length !== 3) {
+            return res.status(400).json({ error: 'Invalid encrypted payload format' });
+        }
+        
+        const [keyId, iv, ciphertext] = parts;
+        
+        const keyDoc = await Key.findOne({ keyId });
+        if (!keyDoc || !keyDoc.isActive) {
+            return res.status(404).json({ error: 'Decryption key not found or inactive' });
+        }
+
+        // Decrypt text
+        const output = decrypt(ciphertext, keyDoc.keyValue, iv);
+        
+        if (output.startsWith("Error:")) {
+            return res.status(400).json({ error: output });
+        }
+
+        await Log.create({ action: 'decrypt', status: 'success', details: `Decrypted with key ${keyId}` });
         res.json({ message: 'Data Decrypted via Switch', decryptedPayload: output });
     } catch (err) {
+        await Log.create({ action: 'decrypt', status: 'fail', details: err.message });
         res.status(500).json({ error: 'Decryption Failed' });
     }
 });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Lock, Plus, Activity, RefreshCw } from 'lucide-react';
+import { KeyRound, Lock, Plus, Activity, RefreshCw, Trash2 } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:5000/api';
@@ -30,6 +30,18 @@ export function KeyList() {
       fetchKeys();
     } catch (error) {
       console.error("Failed to generate key", error);
+    }
+  };
+
+  const handleDeleteKey = async (id) => {
+    if (!window.confirm('WARNING: Are you sure you want to delete this key? Any data encrypted with it will become permanently unrecoverable.')) return;
+    try {
+      await axios.delete(`${API_URL}/keys/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('zen_token')}` }
+      });
+      fetchKeys();
+    } catch (error) {
+      console.error("Failed to delete key", error);
     }
   };
 
@@ -95,6 +107,14 @@ export function KeyList() {
                   <span className="text-gray-400">{new Date(k.createdAt).toLocaleDateString()} at {new Date(k.createdAt).toLocaleTimeString()}</span>
                 </div>
               </div>
+
+              <button 
+                onClick={() => handleDeleteKey(k._id)} 
+                className="absolute bottom-5 right-5 p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors z-20" 
+                title="Delete Key"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
             </div>
           ))
         )}

@@ -1,23 +1,29 @@
 const crypto = require('crypto');
 
 const algorithm = 'aes-256-cbc';
-// For demo purposes, we generate a random key/iv on server start.
-// In a full key-management system, these would be fetched from MongoDB.
-const key = crypto.randomBytes(32);
-const iv = crypto.randomBytes(16);
 
 // Encryption engine
-function encrypt(text) {
+function encrypt(text, hexKey) {
+  const key = Buffer.from(hexKey, 'hex');
+  const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv(algorithm, key, iv);
+  
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-  return encrypted;
+  
+  return {
+    iv: iv.toString('hex'),
+    encryptedData: encrypted
+  };
 }
 
 // Decryption engine
-function decrypt(encryptedText) {
+function decrypt(encryptedText, hexKey, hexIv) {
   try {
+    const key = Buffer.from(hexKey, 'hex');
+    const iv = Buffer.from(hexIv, 'hex');
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
+    
     let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
@@ -26,12 +32,4 @@ function decrypt(encryptedText) {
   }
 }
 
-// THIS IS YOUR "SWITCH" ⭐ (Intercepts traffic and encrypts the payload)
-const encryptMiddleware = (req, res, next) => {
-  if (req.body && req.body.data) {
-    req.body.data = encrypt(req.body.data);
-  }
-  next();
-};
-
-module.exports = { encrypt, decrypt, encryptMiddleware };
+module.exports = { encrypt, decrypt };
