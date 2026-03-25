@@ -153,7 +153,7 @@ export function Simulation() {
             <button 
               onClick={handleReceive}
               disabled={receiving || !encryptedPayload}
-              className={`w-full mt-4 py-2 rounded font-semibold flex items-center justify-center gap-2 text-sm transition-all
+              className={`w-full mt-4 py-2 rounded font-semibold flex items-center justify-center gap-2 text-sm transition-all relative z-10
                ${encryptedPayload && !receiving ? 'bg-accent-purple text-white shadow-[0_0_15px_rgba(139,92,246,0.4)] hover:bg-[#7e4df2]' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}
               `}
             >
