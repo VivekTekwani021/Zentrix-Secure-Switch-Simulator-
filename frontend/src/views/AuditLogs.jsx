@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShieldAlert, Activity, Filter, Download } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -16,7 +17,7 @@ export function AuditLogs() {
         });
         setLogs(res.data);
       } catch (error) {
-        console.error("Failed to fetch logs", error);
+        toast.error("Failed to fetch system audit logs");
       } finally {
         setLoading(false);
       }

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Server, KeyRound, Activity, Zap } from 'lucide-react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -46,7 +47,7 @@ export function DashboardStats() {
           transmissions: totalTransmissions || 0
         });
       } catch (error) {
-        console.error("Failed to fetch stats", error);
+        toast.error("Failed to fetch dashboard statistics");
       }
     };
     fetchStats();

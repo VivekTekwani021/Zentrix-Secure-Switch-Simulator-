@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Server, Activity, Plus } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -26,8 +27,9 @@ export function DeviceList() {
         headers: { Authorization: `Bearer ${localStorage.getItem('zen_token')}` }
       });
       setDevices(res.data);
+      toast.success(`Node ${randomName} successfully registered in the network`);
     } catch (error) {
-      console.error("Failed to register node", error);
+      toast.error(error.response?.data?.error || "Failed to register node");
     }
   };
 
@@ -39,7 +41,7 @@ export function DeviceList() {
         });
         setDevices(res.data);
       } catch (error) {
-        console.error("Failed to fetch devices", error);
+        toast.error("Failed to fetch devices");
       } finally {
         setLoading(false);
       }

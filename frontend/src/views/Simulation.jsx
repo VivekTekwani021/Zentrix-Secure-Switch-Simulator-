@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RadioTower, Send, Download, Cpu, Key, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -11,7 +12,6 @@ export function Simulation() {
   const [decryptedPayload, setDecryptedPayload] = useState(null);
   const [transmitting, setTransmitting] = useState(false);
   const [receiving, setReceiving] = useState(false);
-  const [message, setMessage] = useState({ text: '', isError: false });
   const [keys, setKeys] = useState([]);
   const [selectedKeyId, setSelectedKeyId] = useState('');
 
@@ -27,7 +27,7 @@ export function Simulation() {
           setSelectedKeyId(activeKeys[0].keyId);
         }
       } catch (err) {
-        console.error("Failed to fetch keys", err);
+        toast.error("Failed to fetch keys");
       }
     };
     fetchKeys();
@@ -41,7 +41,6 @@ export function Simulation() {
     setTransmitting(true);
     setEncryptedPayload(null);
     setDecryptedPayload(null);
-    setMessage({ text: '' });
 
     try {
       const res = await axios.post(`${API_URL}/simulate/transmit`, { data: inputData, keyId: selectedKeyId }, { headers });
@@ -50,9 +49,9 @@ export function Simulation() {
       await new Promise(r => setTimeout(r, 800));
       
       setEncryptedPayload(res.data.encryptedPayload);
-      setMessage({ text: 'Data securely encapsulated and transmitted.', isError: false });
+      toast.success('Data securely encapsulated and transmitted.');
     } catch (err) {
-      setMessage({ text: err.response?.data?.error || 'Transmission failed.', isError: true });
+      toast.error(err.response?.data?.error || 'Transmission failed.');
     } finally {
       setTransmitting(false);
     }
@@ -72,9 +71,9 @@ export function Simulation() {
           ? JSON.stringify(res.data.decryptedPayload, null, 2) 
           : res.data.decryptedPayload
       );
-      setMessage({ text: 'Payload intercepted and successfully decrypted.', isError: false });
+      toast.success('Payload intercepted and successfully decrypted.');
     } catch (err) {
-      setMessage({ text: err.response?.data?.error || 'Decryption failed.', isError: true });
+      toast.error(err.response?.data?.error || 'Decryption failed.');
     } finally {
       setReceiving(false);
     }
@@ -89,19 +88,6 @@ export function Simulation() {
           </h2>
           <p className="text-gray-400 text-sm mt-1">Simulate end-to-end data transmission across the secure switch framework.</p>
         </div>
-        
-        <AnimatePresence>
-          {message.text && (
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${message.isError ? 'bg-accent-red/10 text-accent-red border border-accent-red/20' : 'bg-accent-green/10 text-accent-green border border-accent-green/20'}`}
-            >
-              {message.text}
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_250px_1fr] gap-6 flex-1">

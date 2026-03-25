@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { KeyRound, Lock, Plus, Activity, RefreshCw, Trash2 } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -16,7 +17,7 @@ export function KeyList() {
       });
       setKeys(res.data);
     } catch (error) {
-      console.error("Failed to fetch keys", error);
+      toast.error(error.response?.data?.error || "Failed to retrieve keys from server");
     } finally {
       setLoading(false);
     }
@@ -27,22 +28,47 @@ export function KeyList() {
       await axios.post(`${API_URL}/keys/generate`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('zen_token')}` }
       });
+      toast.success("New cryptographic key generated");
       fetchKeys();
     } catch (error) {
-      console.error("Failed to generate key", error);
+      toast.error(error.response?.data?.error || "Failed to generate key");
     }
   };
 
-  const handleDeleteKey = async (id) => {
-    if (!window.confirm('WARNING: Are you sure you want to delete this key? Any data encrypted with it will become permanently unrecoverable.')) return;
-    try {
-      await axios.delete(`${API_URL}/keys/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('zen_token')}` }
-      });
-      fetchKeys();
-    } catch (error) {
-      console.error("Failed to delete key", error);
-    }
+  const handleDeleteKey = (id) => {
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <span className="font-semibold text-white">Delete Cryptographic Key?</span>
+        <span className="text-sm text-gray-300">
+          WARNING: Are you sure you want to delete this key? Any data encrypted with it will become permanently unrecoverable.
+        </span>
+        <div className="flex gap-2 justify-end mt-2">
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            className="px-3 py-1.5 rounded bg-white/5 border border-white/10 text-xs text-white hover:bg-white/10 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await axios.delete(`${API_URL}/keys/${id}`, {
+                  headers: { Authorization: `Bearer ${localStorage.getItem('zen_token')}` }
+                });
+                toast.success("Key deleted permanently");
+                fetchKeys();
+              } catch (error) {
+                toast.error(error.response?.data?.error || "Failed to delete key");
+              }
+            }} 
+            className="px-3 py-1.5 rounded bg-accent-red/20 border border-accent-red/30 text-xs text-accent-red hover:bg-accent-red/30 transition-colors"
+          >
+            Confirm Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { background: '#1a1f2e', border: '1px solid #ef444450' } });
   };
 
   useEffect(() => {
@@ -78,7 +104,7 @@ export function KeyList() {
              <div className="col-span-full py-20 flex flex-col items-center justify-center text-gray-500 glass-panel border-dashed">
                <Lock className="w-8 h-8 mb-4 opacity-50" />
                <p>No cryptographic keys generated yet.</p>
-               <button className="text-accent-purple mt-2 text-sm hover:underline">Click here to generate your first AES-256 key.</button>
+               <button onClick={handleGenerateKey} className="text-accent-purple mt-2 text-sm hover:underline">Click here to generate your first AES-256 key.</button>
              </div>
         ) : (
           keys.map((k, idx) => (

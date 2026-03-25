@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cpu, User, Lock, ArrowRight, UserPlus, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -10,28 +11,28 @@ export function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-
     try {
       if (isRegistering) {
         // Register first
         await axios.post(`${API_URL}/auth/register`, { username, password, role: 'Admin' });
+        toast.success('Registration successful. Authenticating...');
         // Automatically login to retrieve the token
         const loginRes = await axios.post(`${API_URL}/auth/login`, { username, password });
         await new Promise(r => setTimeout(r, 600));
         onLogin(loginRes.data.token, loginRes.data.user);
+        toast.success(`Welcome, ${loginRes.data.user.username}`);
       } else {
         const res = await axios.post(`${API_URL}/auth/login`, { username, password });
         await new Promise(r => setTimeout(r, 600));
         onLogin(res.data.token, res.data.user);
+        toast.success(`Welcome back, ${res.data.user.username}`);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed. Is backend running?');
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Authentication failed');
       setLoading(false);
     }
   };
@@ -101,19 +102,6 @@ export function Login({ onLogin }) {
               {isRegistering ? 'Already have access? Login' : 'Request clearance (Register)'}
             </button>
           </div>
-
-          <AnimatePresence>
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="text-accent-red text-sm text-center bg-accent-red/10 border border-accent-red/20 py-2 rounded"
-              >
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <button 
             type="submit" 
