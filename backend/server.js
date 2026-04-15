@@ -1,11 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const http = require('http');
+const { Server } = require('socket.io');
+const crypto = require('crypto');
 
 // Load environment config
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+// Generate a runtime 256-bit key for live socket transmissions
+const SOCKET_MASTER_KEY = crypto.randomBytes(32).toString('hex');
 
 // Middleware
 app.use(cors());
@@ -102,6 +110,94 @@ app.post('/api/simulate/receive', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+// ------------- SOCKET.IO DEMONSTRATION LOGIC ------------- //
+const connectedNodes = new Map();
+
+io.on('connection', (socket) => {
+    console.log(`[Socket] Device connected: ${socket.id}`);
+
+    // Register device identity
+    socket.on('register_device', (payload) => {
+        const { deviceName, passcode } = payload;
+
+        // Security Layer: Verify authorization code
+        // We will use a hardcoded password 'ZENTRIX-2026' for this demo node layer
+        if (passcode !== 'ZENTRIX-2026') {
+            socket.emit('system_message', { error: 'Authentication Failed: Invalid Security Passcode' });
+            return;
+        }
+
+        socket.data.deviceName = deviceName;
+        connectedNodes.set(socket.id, { id: socket.id, deviceName, connectedAt: new Date() });
+        console.log(`[Socket] Registered device: ${deviceName}`);
+        socket.emit('system_message', { message: `Successfully connected as ${deviceName}` });
+        
+        // Broadcast updated list to everyone
+        io.emit('active_nodes', Array.from(connectedNodes.values()));
+    });
+
+    // Handle incoming data
+    socket.on('send_message', async (payload) => {
+        const { text, targetNodeId } = payload;
+        const sender = socket.data.deviceName || 'Unknown Device';
+        
+        try {
+            // Middleware encrypts data using AES-256-CBC
+            const { iv, encryptedData } = encrypt(text, SOCKET_MASTER_KEY);
+            
+            // Middleware decrypts data
+            const decryptedMessage = decrypt(encryptedData, SOCKET_MASTER_KEY, iv);
+            
+            // Attempt logging to database
+            try {
+                await Log.create({
+                    action: 'transmit',
+                    status: 'success',
+                    details: `[Real-world] ${sender} transmitted to ${targetNodeId || 'all'}: encrypted & decrypted successfully.`
+                });
+            } catch (err) {
+                console.error('Log warning:', err);
+            }
+
+            const messagePacket = {
+                sender,
+                encryptedData,
+                decryptedMessage,
+                isPrivate: !!targetNodeId,
+                timestamp: new Date().toISOString()
+            };
+
+            if (targetNodeId) {
+                // Direct specific broadcast + sender
+                io.to(targetNodeId).emit('receive_message', messagePacket);
+                socket.emit('receive_message', messagePacket); 
+            } else {
+                // Broadcast payload to all
+                io.emit('receive_message', messagePacket);
+            }
+        } catch (error) {
+            console.error('Encryption Middleware Error:', error);
+            socket.emit('system_message', { error: 'Transmission encryption failed.' });
+        }
+    });
+
+    // Handle acknowledgments
+    socket.on('acknowledge', (data) => {
+        const { fromDevice, toDevice } = data;
+        io.emit('receive_ack', {
+            message: `${fromDevice} received message from ${toDevice}`,
+            targetDevice: toDevice,
+            timestamp: new Date().toISOString()
+        });
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`[Socket] Device disconnected: ${socket.id}`);
+        connectedNodes.delete(socket.id);
+        io.emit('active_nodes', Array.from(connectedNodes.values()));
+    });
+});
+
+server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

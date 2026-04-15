@@ -12,11 +12,13 @@ export function DeviceList() {
   const handleRegisterNode = async () => {
     try {
       const randomIp = `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+      const randomMac = `00:1A:${Math.floor(Math.random() * 90 + 10)}:${Math.floor(Math.random() * 90 + 10)}:${Math.floor(Math.random() * 90 + 10)}:B${Math.floor(Math.random() * 9)}`;
       const randomName = `Switch-Node-${Math.floor(Math.random() * 1000)}`;
       
       await axios.post(`${API_URL}/devices/add`, {
         deviceName: randomName,
         ipAddress: randomIp,
+        macAddress: randomMac,
         status: 'active'
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('zen_token')}` }
@@ -92,9 +94,14 @@ export function DeviceList() {
                   <tr key={idx} className="hover:bg-white/5 transition-colors group">
                     <td className="px-6 py-4 font-medium text-white group-hover:text-accent-blue transition-colors">{device.deviceName}</td>
                     <td className="px-6 py-4">
-                      <span className="bg-black/50 border border-dark-border text-gray-300 px-2 py-1 rounded font-mono text-xs">
-                        {device.ipAddress}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="bg-black/50 border border-dark-border text-center text-gray-300 px-2 py-0.5 rounded font-mono text-[10px]">
+                          IP: {device.ipAddress || 'DHCP-Pending'}
+                        </span>
+                        <span className="bg-black/50 border border-dark-border text-center text-gray-400 px-2 py-0.5 rounded font-mono text-[10px]">
+                          MAC: {device.macAddress}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`flex items-center gap-1.5 text-sm ${device.status === 'active' || device.status === 'online' ? 'text-accent-green' : 'text-gray-400'}`}>

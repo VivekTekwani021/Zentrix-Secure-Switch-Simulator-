@@ -3,14 +3,17 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Cpu, LayoutDashboard, RadioTower, Server, 
-  KeyRound, ShieldAlert, LogOut, User, Activity 
+  KeyRound, ShieldAlert, LogOut, User, Activity, Wifi 
 } from 'lucide-react';
 import { Login } from './views/Login';
+import { Register } from './views/Register';
+import { Landing } from './views/Landing';
 import { DashboardStats } from './views/DashboardStats';
 import { Simulation } from './views/Simulation';
 import { DeviceList } from './views/DeviceList';
 import { KeyList } from './views/KeyList';
 import { AuditLogs } from './views/AuditLogs';
+import { DataTransfer } from './views/DataTransfer';
 
 // Global Layout Wrapper
 export default function App() {
@@ -31,9 +34,11 @@ export default function App() {
   const location = useLocation();
 
   useEffect(() => {
-    if (!authToken && location.pathname !== '/login') {
+    const isPublicPath = ['/', '/login', '/register'].includes(location.pathname);
+    
+    if (!authToken && !isPublicPath) {
       navigate('/login');
-    } else if (authToken && location.pathname === '/login') {
+    } else if (authToken && (location.pathname === '/login' || location.pathname === '/register')) {
       navigate('/');
     }
   }, [authToken, location.pathname, navigate]);
@@ -57,8 +62,10 @@ export default function App() {
   if (!authToken) {
     return (
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
-        <Route path="*" element={<Login onLogin={handleLogin} />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Landing />} />
       </Routes>
     );
   }
@@ -66,6 +73,7 @@ export default function App() {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/simulation', label: 'Simulation', icon: RadioTower },
+    { path: '/transfer', label: 'Data Transfer', icon: Wifi },
     { path: '/devices', label: 'Devices', icon: Server },
     { path: '/keys', label: 'Key Management', icon: KeyRound },
     { path: '/logs', label: 'Audit Logs', icon: ShieldAlert },
@@ -165,6 +173,7 @@ export default function App() {
               <Routes location={location}>
                 <Route path="/" element={<DashboardStats />} />
                 <Route path="/simulation" element={<Simulation />} />
+                <Route path="/transfer" element={<DataTransfer />} />
                 <Route path="/devices" element={<DeviceList />} />
                 <Route path="/keys" element={<KeyList />} />
                 <Route path="/logs" element={<AuditLogs />} />
