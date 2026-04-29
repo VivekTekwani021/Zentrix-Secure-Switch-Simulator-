@@ -138,8 +138,14 @@ io.on('connection', (socket) => {
 
     // Handle incoming data
     socket.on('send_message', async (payload) => {
+        // Security Layer: Verify if device is authenticated
+        if (!socket.data.deviceName) {
+            socket.emit('system_message', { error: 'Transmission Blocked: Unauthorized Node. Please initialize with the correct passcode.' });
+            return;
+        }
+
         const { text, targetNodeId } = payload;
-        const sender = socket.data.deviceName || 'Unknown Device';
+        const sender = socket.data.deviceName;
         
         try {
             // Middleware encrypts data using AES-256-CBC
@@ -160,9 +166,10 @@ io.on('connection', (socket) => {
             }
 
             const messagePacket = {
+                messageId: Date.now() + Math.random().toString(36).substring(7),
                 sender,
                 encryptedData,
-                decryptedMessage,
+                iv, // Send IV so receiver can request decryption
                 isPrivate: !!targetNodeId,
                 timestamp: new Date().toISOString()
             };
@@ -181,8 +188,23 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Handle decryption requests from authorized nodes
+    socket.on('request_decryption', (payload) => {
+        if (!socket.data.deviceName) return;
+        
+        const { encryptedData, iv, messageId } = payload;
+        try {
+            const decryptedMessage = decrypt(encryptedData, SOCKET_MASTER_KEY, iv);
+            socket.emit('decryption_result', { messageId, decryptedMessage });
+        } catch (error) {
+            socket.emit('decryption_result', { messageId, error: 'Decryption failed' });
+        }
+    });
+
     // Handle acknowledgments
     socket.on('acknowledge', (data) => {
+        if (!socket.data.deviceName) return;
+        
         const { fromDevice, toDevice } = data;
         io.emit('receive_ack', {
             message: `${fromDevice} received message from ${toDevice}`,

@@ -9,6 +9,7 @@ export function DataTransfer() {
   const [deviceIdentity, setDeviceIdentity] = useState('');
   const [passcode, setPasscode] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [targetNodeId, setTargetNodeId] = useState(''); // '' means broadcast
   const [message, setMessage] = useState('');
   const [logs, setLogs] = useState([]);
@@ -39,8 +40,14 @@ export function DataTransfer() {
     });
 
     socket.on('system_message', (data) => {
-      if (data.error) toast.error(data.error);
-      else toast.success(data.message);
+      if (data.error) {
+        toast.error(data.error);
+        setIsRegistered(false); // Go back to form
+        setIsAuthorized(false);
+      } else {
+        toast.success(data.message);
+        setIsAuthorized(true);
+      }
     });
 
     socket.on('active_nodes', (nodes) => {
@@ -48,17 +55,36 @@ export function DataTransfer() {
     });
 
     socket.on('receive_message', (payload) => {
+      // Add message to logs with a loading state for decryption
+      const newLog = { ...payload, type: 'receive', decryptedMessage: '🔑 Decrypting...' };
+      
       if (payload.sender !== deviceIdentity) {
-        setLogs(prev => [...prev, { type: 'receive', ...payload }]);
+        setLogs(prev => [...prev, newLog]);
         toast.success(`${payload.isPrivate ? 'Direct' : 'Broadcast'} packet from ${payload.sender}`);
         
+        // Request decryption from the server
+        socket.emit('request_decryption', { 
+            encryptedData: payload.encryptedData, 
+            iv: payload.iv,
+            messageId: payload.messageId
+        });
+
         socket.emit('acknowledge', {
           fromDevice: deviceIdentity,
           toDevice: payload.sender
         });
       } else {
-         setLogs(prev => [...prev, { type: 'send_success', ...payload }]);
+         // For sender, we already know the content, but we'll show it as success
+         setLogs(prev => [...prev, { ...payload, type: 'send_success', decryptedMessage: 'Decrypted at Source' }]);
       }
+    });
+
+    socket.on('decryption_result', (data) => {
+        setLogs(prev => prev.map(log => 
+            log.messageId === data.messageId 
+                ? { ...log, decryptedMessage: data.decryptedMessage || data.error } 
+                : log
+        ));
     });
 
     socket.on('receive_ack', (payload) => {
@@ -85,12 +111,24 @@ export function DataTransfer() {
     }
     setIsRegistered(true);
   };
-
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || !isConnected) return;
+
+    const messageToTransmit = message.trim();
+    socketRef.current.emit('send_message', { text: messageToTransmit, targetNodeId });
     
-    socketRef.current.emit('send_message', { text: message, targetNodeId });
+    // Optimistically add to logs for the sender so they see their own plain text
+    const tempId = Date.now().toString();
+    setLogs(prev => [...prev, {
+        messageId: tempId,
+        type: 'send_success',
+        sender: deviceIdentity,
+        encryptedData: 'Encrypting...',
+        decryptedMessage: messageToTransmit,
+        timestamp: new Date().toISOString()
+    }]);
+
     setMessage('');
   };
 
@@ -106,16 +144,28 @@ export function DataTransfer() {
         </div>
 
         {isRegistered && (
-          <div className="flex items-center gap-3 bg-dark-panel border border-dark-border px-4 py-2 rounded-xl">
-            <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-accent-green' : 'bg-red-500'} animate-pulse`} />
-            <span className="text-sm font-medium text-gray-300">
-              {isConnected ? `Online as ${deviceIdentity}` : 'Connecting...'}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 bg-dark-panel border border-dark-border px-4 py-2 rounded-xl">
+              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-accent-green' : 'bg-red-500'} animate-pulse`} />
+              <span className="text-sm font-medium text-gray-300">
+                {isConnected ? (isAuthorized ? `Online as ${deviceIdentity}` : 'Authenticating...') : 'Connecting...'}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setIsRegistered(false);
+                setIsAuthorized(false);
+                toast.success('Node session closed');
+              }}
+              className="bg-accent-red/10 hover:bg-accent-red/20 text-accent-red border border-accent-red/20 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+            >
+              Exit Node
+            </button>
           </div>
         )}
       </div>
 
-      {!isRegistered ? (
+      {(!isRegistered || !isAuthorized) ? (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -136,6 +186,7 @@ export function DataTransfer() {
                 placeholder="e.g. Node Alpha"
                 className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-cyan transition-colors"
                 required
+                disabled={isRegistered}
               />
             </div>
             <div>
@@ -147,15 +198,25 @@ export function DataTransfer() {
                 placeholder="Network Key"
                 className="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-cyan transition-colors"
                 required
+                disabled={isRegistered}
               />
             </div>
             <button
               type="submit"
-              disabled={!deviceIdentity || !passcode}
+              disabled={!deviceIdentity || !passcode || isRegistered}
               className="w-full bg-accent-cyan hover:bg-accent-cyan/80 disabled:opacity-50 text-dark-bg font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2"
             >
-              <ShieldCheck className="w-5 h-5" />
-              Initialize Node Socket
+              {isRegistered ? (
+                <span className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 animate-spin" />
+                  Verifying...
+                </span>
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5" />
+                  Initialize Node Socket
+                </>
+              )}
             </button>
           </form>
         </motion.div>

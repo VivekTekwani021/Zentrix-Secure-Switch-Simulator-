@@ -3,7 +3,7 @@ import { ShieldAlert, Activity, Filter, Download } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export function AuditLogs() {
   const [logs, setLogs] = useState([]);

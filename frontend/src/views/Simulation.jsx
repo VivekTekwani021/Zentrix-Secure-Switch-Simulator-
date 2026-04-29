@@ -4,7 +4,7 @@ import { RadioTower, Send, Download, Cpu, Key, Lock, ArrowRight, ShieldCheck } f
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export function Simulation() {
   const [inputData, setInputData] = useState('{\n  "command": "ACTIVATE_NODE_X",\n  "timestamp": 1700000000\n}');

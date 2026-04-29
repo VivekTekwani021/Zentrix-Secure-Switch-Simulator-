@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const StatCard = ({ title, value, icon: Icon, colorClass, delay }) => (
   <motion.div
@@ -39,7 +39,9 @@ export function DashboardStats() {
           axios.get(`${API_URL}/logs`, { headers }).catch(() => ({ data: [] }))
         ]);
 
-        const totalTransmissions = logsRes.data.filter(l => l.action === 'encrypt').length;
+        const totalTransmissions = logsRes.data.filter(l => 
+          l.action === 'encrypt' || l.action === 'transmit' || l.action === 'decrypt'
+        ).length;
 
         setStats({
           devices: devRes.data.length || 0,
