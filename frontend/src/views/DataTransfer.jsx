@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { io } from 'socket.io-client';
 import { Wifi, Send, Lock, Unlock, ShieldCheck, Activity, Users, Server } from 'lucide-react';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 
 export function DataTransfer() {
@@ -14,6 +13,7 @@ export function DataTransfer() {
   const [message, setMessage] = useState('');
   const [logs, setLogs] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [mySocketId, setMySocketId] = useState(null);
   const [activeNodes, setActiveNodes] = useState([]); // from socket
   
   const socketRef = useRef(null);
@@ -30,6 +30,7 @@ export function DataTransfer() {
 
     socket.on('connect', () => {
       setIsConnected(true);
+      setMySocketId(socket.id);
       socket.emit('register_device', { deviceName: deviceIdentity, passcode });
     });
 
@@ -97,7 +98,7 @@ export function DataTransfer() {
     return () => {
       socket.disconnect();
     };
-  }, [isRegistered, deviceIdentity, API_URL]);
+  }, [isRegistered, deviceIdentity, API_URL, passcode]);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -338,10 +339,10 @@ export function DataTransfer() {
                  {activeNodes.length === 0 ? (
                     <div className="text-center text-sm text-gray-500 py-4">No other nodes</div>
                  ) : (
-                    activeNodes.map(node => (
+                     activeNodes.map(node => (
                         <div key={node.id} className="flex items-center justify-between p-3 rounded-lg border border-dark-border/50 bg-dark-bg">
                             <span className="text-sm font-medium text-gray-200">
-                                {node.deviceName} {node.id === socketRef.current?.id && <span className="text-xs text-accent-cyan ml-1">(You)</span>}
+                                {node.deviceName} {node.id === mySocketId && <span className="text-xs text-accent-cyan ml-1">(You)</span>}
                             </span>
                             <div className="w-2 h-2 rounded-full bg-accent-green animate-pulse"></div>
                         </div>

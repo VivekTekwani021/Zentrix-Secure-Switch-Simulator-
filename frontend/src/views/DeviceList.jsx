@@ -42,7 +42,7 @@ export function DeviceList() {
           headers: { Authorization: `Bearer ${localStorage.getItem('zen_token')}` }
         });
         setDevices(res.data);
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch devices");
       } finally {
         setLoading(false);

@@ -48,7 +48,7 @@ export function DashboardStats() {
           keys: keysRes.data.length || 0,
           transmissions: totalTransmissions || 0
         });
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch dashboard statistics");
       }
     };

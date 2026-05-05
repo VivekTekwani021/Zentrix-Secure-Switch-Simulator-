@@ -15,18 +15,17 @@ export function Simulation() {
   const [keys, setKeys] = useState([]);
   const [selectedKeyId, setSelectedKeyId] = useState('');
 
-  const headers = { Authorization: `Bearer ${localStorage.getItem('zen_token')}` };
-
   useEffect(() => {
     const fetchKeys = async () => {
       try {
+        const headers = { Authorization: `Bearer ${localStorage.getItem('zen_token')}` };
         const res = await axios.get(`${API_URL}/keys`, { headers });
         const activeKeys = res.data.filter(k => k.isActive);
         setKeys(activeKeys);
         if (activeKeys.length > 0) {
           setSelectedKeyId(activeKeys[0].keyId);
         }
-      } catch (err) {
+      } catch {
         toast.error("Failed to fetch keys");
       }
     };
@@ -35,7 +34,7 @@ export function Simulation() {
 
   const handleTransmit = async () => {
     if (!inputData || !selectedKeyId) {
-      if (!selectedKeyId) setMessage({ text: 'Please generate an active encryption key in Key Management first.', isError: true });
+      if (!selectedKeyId) toast.error('Please generate an active encryption key in Key Management first.');
       return;
     }
     setTransmitting(true);
@@ -43,6 +42,7 @@ export function Simulation() {
     setDecryptedPayload(null);
 
     try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('zen_token')}` };
       const res = await axios.post(`${API_URL}/simulate/transmit`, { data: inputData, keyId: selectedKeyId }, { headers });
       
       // Artificial delay for visual effect
@@ -62,6 +62,7 @@ export function Simulation() {
     setReceiving(true);
     
     try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('zen_token')}` };
       const res = await axios.post(`${API_URL}/simulate/receive`, { encryptedData: encryptedPayload }, { headers });
       
       await new Promise(r => setTimeout(r, 800));

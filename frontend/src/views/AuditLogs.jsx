@@ -16,7 +16,7 @@ export function AuditLogs() {
           headers: { Authorization: `Bearer ${localStorage.getItem('zen_token')}` }
         });
         setLogs(res.data);
-      } catch (error) {
+      } catch {
         toast.error("Failed to fetch system audit logs");
       } finally {
         setLoading(false);
